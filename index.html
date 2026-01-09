@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Third Key – Alice in Borderland</title>
+<style>
+body { margin:0; font-family:system-ui; background: radial-gradient(circle at top,#111 0%,#000 60%); color:#e5e5e5; }
+.container { max-width:700px; margin:auto; padding:24px; }
+h1 { text-align:center; font-size:2.2rem; letter-spacing:1px; }
+h2 { margin-top:32px; font-size:1.4rem; border-bottom:1px solid #333; padding-bottom:6px; }
+.card { background:#0d0d0d; border:1px solid #222; border-radius:16px; padding:20px; margin-top:16px; box-shadow:0 10px 30px rgba(0,0,0,0.5); }
+button { background:#e50914; border:none; color:white; padding:12px 16px; border-radius:12px; font-size:1rem; cursor:pointer; margin-top:12px; }
+button:hover { background:#ff1c26; }
+.hidden { display:none; }
+.clue { background:#111; border-left:4px solid #e50914; padding:12px; margin-top:10px; border-radius:8px; font-size:0.95rem; }
+footer { text-align:center; margin-top:40px; font-size:0.8rem; opacity:0.6; }
+input { padding:8px; border-radius:8px; border:none; margin-right:8px; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>6♣ THE THIRD KEY</h1>
+<p style="text-align:center; opacity:0.8;">Alice in Borderland – 3 Player Game</p>
+
+<div class="card">
+<h2>Game Setup</h2>
+<p>• Players: 3<br>• Time Limit: 30 minutes<br>• Objective: Open the exit using two real keys</p>
+<p><strong>Important:</strong> Only two keys are real. One is fake. No player knows their own key.</p>
+</div>
+
+<div class="card" id="hostControls">
+<h2>Host Controls</h2>
+<button onclick="assignKeys()">Assign Keys</button>
+<div id="keys" class="clue hidden"></div>
+<button onclick="giveClues()">Generate Clues</button>
+<div id="clues" class="hidden"></div>
+</div>
+
+<div class="card">
+<h2>Final Rule</h2>
+<p>The group must agree on <strong>two keys</strong> to insert.</p>
+<p>If a fake key is chosen → <strong>ALL PLAYERS LOSE</strong>.</p>
+<p>The player whose key is not chosen is locked out.</p>
+</div>
+
+<div class="card">
+<h2>Join a Room</h2>
+<input type="text" id="roomInput" placeholder="Enter room code">
+<button onclick="joinRoom()">Join</button>
+</div>
+
+<div class="card">
+<h2>Or Generate Random Room Code</h2>
+<button onclick="generateRoom()">Generate Room Code</button>
+<p id="randomRoom" style="margin-top:8px; opacity:0.8;"></p>
+</div>
+
+<footer>Borderland Simulation • Use responsibly</footer>
+</div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+
+<script>
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyCVnRzzSbr28yKXWykMfgDGXQnjFMI8xMU",
+  authDomain: "the-gate-8c31d.firebaseapp.com",
+  databaseURL: "https://the-gate-8c31d-default-rtdb.firebaseio.com/",
+  projectId: "the-gate-8c31d",
+  storageBucket: "the-gate-8c31d.firebasestorage.app",
+  messagingSenderId: "1041301769930",
+  appId: "1:1041301769930:web:6ba5152a02c9a0d446ae33"
+};
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let room = new URLSearchParams(window.location.search).get("room") || "defaultRoom";
+const role = new URLSearchParams(window.location.search).get("role") || "player";
+
+if(role !== "host") document.getElementById('hostControls').classList.add('hidden');
+
+function joinRoom() {
+  const inputRoom = document.getElementById('roomInput').value.trim();
+  if(inputRoom) {
+    room = inputRoom;
+    alert("Joined room: " + room);
+  }
+}
+
+function generateRoom() {
+  const random = 'ROOM-' + Math.floor(Math.random() * 9000 + 1000);
+  room = random;
+  document.getElementById('randomRoom').textContent = "Room code: " + random;
+  alert("Room created: " + random);
+}
+
+function assignKeys() {
+  if(role !== "host") return;
+  const keys = ['REAL','REAL','FAKE'].sort(() => Math.random()-0.5);
+  db.ref(`gameRooms/${room}/keys`).set(keys);
+}
+
+function giveClues() {
+  if(role !== "host") return;
+  const clues = [
+    'Player B’s key is NOT fake.',
+    'At least one of Player A or C has a fake key.',
+    'Exactly one key is fake.',
+    'If Player C’s key is real, Player A’s is fake.',
+    'Player A’s key is not fake.',
+    'If Player B’s key is fake, all players lose.'
+  ].sort(() => Math.random()-0.5);
+  db.ref(`gameRooms/${room}/clues`).set([clues[0],clues[1],clues[2]]);
+}
+
+db.ref(`gameRooms/${room}/keys`).on('value', snapshot => {
+  const keys = snapshot.val();
+  if(keys) {
+    document.getElementById('keys').innerHTML =
+      `Player A: ${keys[0]}<br>Player B: ${keys[1]}<br>Player C: ${keys[2]}`;
+    document.getElementById('keys').classList.remove('hidden');
+  }
+});
+
+db.ref(`gameRooms/${room}/clues`).on('value', snapshot => {
+  const clues = snapshot.val();
+  if(clues) {
+    document.getElementById('clues').innerHTML =
+      '<div class="clue">Player A: '+clues[0]+'</div>'+
+      '<div class="clue">Player B: '+clues[1]+'</div>'+
+      '<div class="clue">Player C: '+clues[2]+'</div>';
+    document.getElementById('clues').classList.remove('hidden');
+  }
+});
+</script>
+</body>
+                                             </html>
